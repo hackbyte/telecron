@@ -26,18 +26,18 @@ v20180905164411CEST hackbyte (first variant)
 import os, sys, inspect
 ################################################################################
 ################################################################################
-scriptpath	= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-scriptname	= os.path.basename(inspect.getfile(inspect.currentframe()))
+scriptpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+scriptname = os.path.basename(inspect.getfile(inspect.currentframe()))
 if 'include' == os.path.basename(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))):
-	scriptpath = os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))))
+    scriptpath = os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))))
 else:
-	scriptpath	= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    scriptpath	= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 includepath	= scriptpath + '/include'
 if os.path.isdir(includepath):
-	sys.path.insert(0, includepath)
+    sys.path.insert(0, includepath)
 #else:
-#	print("No include path found!")
-#	sys.exit(23)
+#    print("No include path found!")
+#    sys.exit(23)
 ################################################################################
 import shutil, time, datetime, locale, asyncio, logging, logging.handlers
 import operator, argparse
@@ -46,11 +46,11 @@ from pudb import set_trace
 import telepot
 from telepot.aio.loop import MessageLoop
 from telepot.aio.delegate import (
-	per_chat_id,
-	per_application,
-	per_event_source_id,
-	create_open,
-	pave_event_space)
+    per_chat_id,
+    per_application,
+    per_event_source_id,
+    create_open,
+    pave_event_space)
 
 ################################################################################
 ################################################################################
@@ -59,7 +59,7 @@ from telepot.aio.delegate import (
 logfilenamepattern = scriptname
 # get rid of .py extension
 if '.py' in logfilenamepattern:
-	logfilenamepattern = logfilenamepattern.replace('.py','')
+    logfilenamepattern = logfilenamepattern.replace('.py','')
 
 # create log object
 log = logging.getLogger()
@@ -71,27 +71,27 @@ log.setLevel(logging.DEBUG)
 
 # Formatting for anything not syslog (so we need our own timestamp)
 logformatter_main = logging.Formatter(
-	'%(asctime)s.%(msecs)03d ' +
-	'%(filename)-25s ' +
-	'%(module)-23s ' +
-	'%(funcName)-23s ' +
-	'%(lineno)4d ' +
-	'%(levelname)-8s ' +
-	'%(message)s',
-	'%Y%m%d%H%M%S')
-#	'%(processName)-12s ' +
-#	'%(threadName)-12s ' +
+    '%(asctime)s.%(msecs)03d ' +
+    '%(filename)-25s ' +
+    '%(module)-23s ' +
+    '%(funcName)-23s ' +
+    '%(lineno)4d ' +
+    '%(levelname)-8s ' +
+    '%(message)s',
+    '%Y%m%d%H%M%S')
+#    '%(processName)-12s ' +
+#    '%(threadName)-12s ' +
 
 # for syslog (so we do not need our own timestamp)
 logformatter_syslog = logging.Formatter(
-	'%(filename)-25s ' +
-	'%(module)-23s ' +
-	'%(funcName)-23s ' +
-	'%(lineno)4d ' +
-	'%(levelname)-8s ' +
-	'%(message)s')
-#	'%(processName)-12s ' +
-#	'%(threadName)-12s ' +
+    '%(filename)-25s ' +
+    '%(module)-23s ' +
+    '%(funcName)-23s ' +
+    '%(lineno)4d ' +
+    '%(levelname)-8s ' +
+    '%(message)s')
+#    '%(processName)-12s ' +
+#    '%(threadName)-12s ' +
 
 # create console log handler (stdout/stderr)
 logcons = logging.StreamHandler()
@@ -108,66 +108,100 @@ logfile.setLevel(logging.DEBUG)
 logfile.setFormatter(logformatter_main)
 log.addHandler(logfile)
 
-
 ################################################################################
-log.debug("Program start...")
+parser = argparse.ArgumentParser(description=scriptname + ' commandline parameters.')
+parser.add_argument(
+    "-t", "--token",
+    dest="token",
+    action="store",
+    default="",
+    metavar="TOKEN",
+    help="Use TOKEN for telegram api.")
+parser.add_argument(
+    "-u", "--uid",
+    dest="uid",
+    action="store",
+    default="",
+    metavar="UID",
+    help="Speak to this UID.")
+parser.add_argument(
+    "-d", "--debug",
+    dest="debug",
+    action="store_true",
+    default=False,
+    help="show heavy masses(!!) of debug output.")
+cmdline = parser.parse_args()
+################################################################################
+if cmdline.debug:
+    log.setLevel(logging.DEBUG)
+################################################################################
+log.debug("python version " + str(sys.version).replace('\n', ''))
+log.debug(scriptname+" START " + '{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))
+################################################################################
+log.debug("cmdline.token = " + str(cmdline.token))
+log.debug("cmdline.uid = "   + str(cmdline.uid))
+log.debug("cmdline.debug = " + str(cmdline.debug))
+################################################################################
 
-#class TeleCron(telepot.aio.helper.ChatHandler):
-class TeleCron(telepot.aio.helper.Monitor):
-	log.debug("Class Load")
-	def __init__(self, *args, **kwargs):
-		super(AlarmSetter, self).__init__(*args, **kwargs)
-		log.debug("alarmsetter:")
-		log.debug("args = " + str(args))
-		log.debug("kwargs = " + str(kwargs))
-		# 1. Customize the routing table:
-		#      On seeing an event of flavor `_alarm`, call `self.on__alarm`.
-		# To prevent flavors from colliding with those of Telegram messages,
-		# events are given flavors prefixed with `_` by convention. Also by
-		# convention is that the event-handling function is named `on_`
-		# followed by flavor, leading to the double underscore.
-		self.router.routing_table['_alarm'] = self.on__alarm
+class TeleCron(telepot.aio.helper.ChatHandler):
+#class TeleCron(telepot.aio.helper.Monitor):
+    log.debug("Class Load")
+    def __init__(self, *args, **kwargs):
+        super(TeleCron, self).__init__(*args, **kwargs)
 
-	# 2. Define event-handling function
-	async def on__alarm(self, event):
-#		print(event)  # see what the event object actually looks like
-		log.debug(str(event))
-		await self.sender.sendMessage('Beep beep, time to wake up!')
+        # 1. Customize the routing table:
+        #      On seeing an event of flavor `_alarm`, call `self.on__alarm`.
+        # To prevent flavors from colliding with those of Telegram messages,
+        # events are given flavors prefixed with `_` by convention. Also by
+        # convention is that the event-handling function is named `on_`
+        # followed by flavor, leading to the double underscore.
+        self.router.routing_table['_alarm'] = self.on__alarm
 
-	async def on_chat_message(self, msg):
-		log.debug("on_chat_message:")
-		log.debug("self = " + str(self))
-		log.debug("msg  = " + str(msg))
-		try:
-			delay = float(msg['text'])
-
-			# 3. Schedule event
-			#      The second argument is the event spec: a 2-tuple of (flavor, dict).
-			# Put any custom data in the dict. Retrieve them in the event-handling function.
-			self.scheduler.event_later(delay, ('_alarm', {'payload': delay}))
-			await self.sender.sendMessage('Got it. Alarm is set at %.1f seconds from now.' % delay)
-		except ValueError:
-			await self.sender.sendMessage('Not a number. No alarm set.')
-		log.debug("on_chat_message ended....")
-
-	log.debug("Class Loaded")
+        log.debug("args = " + str(args))
+        log.debug("kwargs = " + str(kwargs))
 
 
-TOKEN = sys.argv[1]
+    # 2. Define event-handling function
+    async def on__alarm(self, event):
+        log.debug(str(event))
+#       set_trace()
+#        print(event)  # see what the event object actually looks like
+        await self.sender.sendMessage('Beep beep, time to wake up!')
 
-bot = telepot.aio.DelegatorBot(TOKEN, [
-	pave_event_space()(
-#		per_chat_id(), create_open, AlarmSetter, timeout=10),
-		per_application(), create_open, AlarmSetter),
-#	pave_event_space()(
-#		per_event_source_id(1), create_open, TeleCron, timeout=10),
+    async def on_chat_message(self, msg):
+        log.debug("self = " + str(self))
+        log.debug("msg  = " + str(msg))
+        try:
+            delay = float(msg['text'])
+
+            # 3. Schedule event
+            #      The second argument is the event spec: a 2-tuple of (flavor, dict).
+            # Put any custom data in the dict. Retrieve them in the event-handling function.
+            self.scheduler.event_later(delay, ('_alarm', {'payload': delay}))
+            await self.sender.sendMessage('Got it. Alarm is set at %.1f seconds from now.' % delay)
+        except ValueError:
+            await self.sender.sendMessage('Not a number. No alarm set.')
+
+
+
+bot = telepot.aio.DelegatorBot(cmdline.token, [
+
+    pave_event_space()(
+        per_application(), create_open, TeleCron),
+
+#    pave_event_space()(
+#        per_chat_id(), create_open, TeleCron, timeout=10),
+
+#    pave_event_space()(
+#        per_event_source_id(1), create_open, TeleCron, timeout=10),
+
 ])
 
 loop = asyncio.get_event_loop()
 log.debug("loop = " + str(loop))
-loop.create_task(MessageLoop(bot).run_forever())
 
-#set_trace()
+loop.create_task(MessageLoop(bot).run_forever())
+log.debug("created task...")
 
 #delay=2
 #bot.router.routing_table['_alarm'] = TeleCron.on__alarm
@@ -175,3 +209,4 @@ loop.create_task(MessageLoop(bot).run_forever())
 
 log.debug('Listening ...')
 loop.run_forever()
+
